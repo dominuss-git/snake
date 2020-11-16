@@ -4,6 +4,7 @@
 .data
 
 snake dw 2000 dup (?)
+speed dw 2
 countSnake dw 2
 last dw ?
 posScore dw ?
@@ -14,11 +15,152 @@ y_map db 2
 rand_a dw 63621
 rand_m dw 7fffh
 seed dw -1
+hard_score db 'D','R','A','H'
+easy_score db 'Y','S','A','E'
+medium_score db 'M','U','I','D','E','M'
+exit_score db 'T', 'I', 'X', 'E'
+score_score db ' ', ':', 'E', 'R', 'O', 'C', 'S'
 food dw ?
 score db 4 dup(?)
 
 .code
 JMP start
+Show_menu:
+  MOV countSnake, 2
+  scroll_menu:
+  MOV DH, 9  ; hard
+  MOV DL, 37
+  MOV AX, speed
+
+  CMP AX, 2
+  JNE not_hard
+  MOV BH, 4
+  JMP hard
+  not_hard:
+  MOV BH, 15
+  hard:
+  
+  MOV SI, 4
+  cycle_hard:
+
+  SUB SI, 1
+  MOV BL, hard_score[SI]
+  CALL Draw_Pixel
+
+  INC DL
+
+  CMP SI, 0
+  JNE cycle_hard
+
+  MOV DH, 10   ; medium
+  MOV DL, 36
+
+  MOV AX, speed
+  CMP AX, 3
+  JNE not_medium
+  MOV BH, 4
+  JMP medium
+  not_medium:
+  MOV BH, 15
+  medium:
+
+  MOV SI, 6
+  cycle_medium:
+
+  SUB SI, 1
+  MOV BL, medium_score[SI]
+  CALL Draw_Pixel
+
+  INC DL
+
+  CMP SI, 0
+  JNE cycle_medium
+
+  MOV DH, 11 ;easy
+  MOV DL, 37
+
+  MOV AX, speed
+  CMP AX, 4
+  JNE not_easy
+  MOV BH, 4
+  JMP easy
+  not_easy:
+  MOV BH, 15
+  easy:
+
+  MOV SI, 4
+  cycle_easy:
+
+  SUB SI, 1
+  MOV BL, easy_score[SI]
+  CALL Draw_Pixel
+
+  INC DL
+
+  CMP SI, 0
+  JNE cycle_easy
+
+  MOV DH, 12  ;exit
+
+  MOV DL, 37
+  MOV AX, speed
+  CMP AX, 5
+  JNE not_exit
+  MOV BH, 4
+  JMP exit
+  not_exit:
+  MOV BH, 15
+
+  exit:
+
+  MOV SI, 4
+  cycle_exit:
+
+  SUB SI, 1
+  MOV BL, exit_score[SI]
+  CALL Draw_Pixel
+
+  INC DL
+
+  CMP SI, 0
+  JNE cycle_exit
+   
+  CALL Delay 
+  XOR AX, AX
+  CALL Click
+  MOV AH, route
+  MOV route, 0
+
+  CMP AH, 48h
+  JNE next
+  SUB speed, 1
+  next:
+  CMP AH, 50h
+  JNE n_next
+  ADD speed, 1
+
+  n_next:
+
+  CMP speed, 1
+  JNE prev
+  MOV speed, 5
+
+  prev:
+
+  CMP speed, 6
+  JNE p_prev
+  MOV speed, 2
+
+  p_prev:
+
+  CMP AH, 4Bh
+  JNE scroll_menu
+
+  CMP speed, 5
+  JE game_over
+  
+  MOV route, 4Dh
+  RET
 
 Show_score:
   MOV AX, countSnake
@@ -40,7 +182,7 @@ Show_score:
   CMP AX, 0
   JNE retry
 
-  mov dh, 0
+  mov dh, 1
   mov dl, 7
   MOV SI, CX
   MOV BH, 15
@@ -89,7 +231,7 @@ Random:
   mov ax,[seed] ;считать последнее случайное число
   test ax,ax ;проверить его, если это -1,
   js fetch_seed ;функция ещё ни разу не вызывалась
- ;и надо создать начальные значения
+  ;и надо создать начальные значения
   randomize:
   mul [rand_a] ;умножить число на а
   xor dx,dx
@@ -198,79 +340,63 @@ Draw_Pixel:
 
 Draw_Borders:
   push ax bx cx dx di si
-  mov dh,1
+
   mov dl,0
 
   mov bh, 15
-  mov bl, 201
+  mov bl, 176
+
+  top_border:
+
+  MOV DH, 1
   CALL Draw_Pixel
 
-  mov dl,79
-  mov bl,187
-  CALL Draw_Pixel
-  l1:
-  CMP dh,23
-  JZ l2
-  mov dl,0
-  ADD dh,1
+  MOV DH, 23
+  CALL  Draw_Pixel
+
+  INC DL
+
+  CMP dl, 80
+  JNE top_border
+
+  MOV DH, 1
+  right_border:
+
   MOV BH, 15
-  CMP DH, 9
-  JL RR
+
+  CMP DH, 8
+  JL not_red
   CMP DH, 16
-  JA RR
+  JA not_red
+
   MOV BH, 4
-  RR:
-  mov bl,186
-  CALL Draw_Pixel
-  mov dl,79
+
+  not_red:
+
+  MOV DL, 0
   CALL Draw_Pixel
 
-  jmp l1
-  l2:
-  ADD dh,1
-  mov dl,0
-  mov bl,200
-  CALL Draw_Pixel
-  mov dl,79
-  mov bl,188
-  CALL Draw_Pixel
-  
-  mov dl,0
-  l3:
-  CMP dl,78
-  JZ l4
-  mov dh,1
-  ADD dl,1
-  mov bl,205
-  CALL Draw_Pixel
-  mov dh,24
+  MOV DL, 79
+  CALL  Draw_Pixel
+
+  INC DH
+
+  CMP DH, 23
+  JNE right_border
+
+  MOV SI, 7
+  MOV DH, 1
+  MOV DL, 0
+  cycle_score:
+
+  SUB SI, 1
+  MOV BL, score_score[SI]
   CALL Draw_Pixel
 
-  jmp l3
-  l4:
+  INC DL
 
-  mov dh,0
-  mov dl,0
-  mov bl,83
-  CALL  Draw_Pixel 
-  INC dl
-  mov bl,67
-  CALL Draw_Pixel
-  INC dl
-  mov bl,79
-  CALL Draw_Pixel
-  INC dl
-  mov bl,82
-  CALL Draw_Pixel
-  INC dl
-  mov bl,69
-  CALL Draw_Pixel
-  INC dl
-  mov bl,58
-  CALL Draw_Pixel
-  INC dl
-  INC dl
-  mov [posScore],dx
+  CMP SI, 0
+  JNE cycle_score
 
   pop si di dx cx bx ax
   RET
@@ -285,7 +411,7 @@ Spawn_snake:
   ADD SI, SI
 
   MOV BH, 2 ;color
-  MOV BL, 1 ;ascii of head
+  MOV BL, 207 ;ascii of head
 
   MOV snake[SI], DX
   CALL Draw_Pixel
@@ -308,7 +434,7 @@ Delay:
   push cx
 	mov ah,0
 	int 1Ah 
-	add dx, 2 ;score
+	add dx, speed
 	mov bx,dx
     repeat:   
 	int 1Ah
@@ -327,7 +453,7 @@ Game_rools:
   ADD SI, SI
 
   MOV BH, 2
-  MOV BL, 1
+  MOV BL, 148
 
   MOV DX, snake[si]
   MOV last, DX
@@ -355,13 +481,13 @@ Game_rools:
   vector:
 
   CMP DL, 0    ;check borders
-  JE game_over
+  JE menu
   CMP DH, 0
-  JE game_over
+  JE menu
   CMP DL, 80
-  JE game_over
+  JE menu
   CMP DH, 24
-  JE game_over
+  JE menu
   MOV head, DX
 
   MOV snake[si], DX
@@ -377,7 +503,7 @@ Game_rools:
   MOV last, AX
 
   CMP DX, head
-  JE game_over
+  JE menu
   
   MOV snake[SI], DX
 
@@ -421,7 +547,7 @@ Spawn_food:
   JNE check_snake_body
 
   MOV BH, 12
-  MOV BL, 9
+  MOV BL, 7
   MOV DX, AX
   MOV food, DX
   CALL Draw_Pixel
@@ -432,10 +558,16 @@ start:
 mov AX,@data
 mov DS,AX
 
+menu:
+CALL Clear_consol
+CALL Draw_Borders
+CALL Show_menu
 CALL Clear_consol
 CALL Draw_Borders
 CALL Game_rools
 
 game_over:
+CALL Clear_consol
+MOV AH, 4Ch
 INT 21h
 end start
